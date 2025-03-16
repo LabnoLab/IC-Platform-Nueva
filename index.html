@@ -3,38 +3,161 @@
 <head>
   <title>Mi Plataforma</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .nota { padding: 10px; margin: 5px; background-color: lightblue; border-radius: 5px; }
-    .nota input { margin: 5px; }
-    button { padding: 5px 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 20px;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+    .nota {
+      padding: 15px;
+      margin: 10px;
+      width: 200px;
+      min-height: 150px;
+      background-color: #fff59d;
+      border-radius: 5px;
+      box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+      display: inline-block;
+      position: relative;
+      transition: transform 0.3s ease;
+      cursor: move; /* Indica que se puede arrastrar */
+    }
+    .nota:hover {
+      transform: scale(1.05);
+    }
+    .nota-content {
+      word-wrap: break-word;
+    }
+    .nota button {
+      position: absolute;
+      bottom: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .nota button.editar {
+      background-color: #2196F3;
+      right: 50px;
+    }
+    .nota button.editar:hover {
+      background-color: #1976D2;
+    }
+    .nota button.borrar {
+      background-color: #ff4444;
+      right: 5px;
+    }
+    .nota button.borrar:hover {
+      background-color: #cc0000;
+    }
+    .form-container {
+      margin-bottom: 20px;
+    }
+    input[type="text"], input[type="color"] {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .dragging {
+      opacity: 0.5; /* Efecto visual mientras se arrastra */
+    }
   </style>
 </head>
 <body>
-  <h1>Mi Plataforma</h1>
-  <div>
+  <div class="form-container">
     <input type="text" id="textoNota" placeholder="Escribe una nota">
-    <input type="color" id="colorNota" value="#ADD8E6">
+    <input type="color" id="colorNota" value="#fff59d" title="Color del fondo">
+    <input type="color" id="colorLetra" value="#333333" title="Color de la letra">
     <input type="text" id="categoriaNota" placeholder="Categoría">
     <button onclick="agregarNota()">Agregar Nota</button>
   </div>
   <div id="listaNotas"></div>
 
+  <!-- Firebase SDK (versión 8.10.1) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <script>
-    // Cargar notas guardadas al iniciar
-    let notas = JSON.parse(localStorage.getItem("notas")) || [];
-    mostrarNotas();
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBtcYaXxheiiCJqVOu1VRKhdiDuN3BfH1k",
+      authDomain: "creative-intelligence-platform.firebaseapp.com",
+      projectId: "creative-intelligence-platform",
+      storageBucket: "creative-intelligence-platform.firebasestorage.app",
+      messagingSenderId: "668415450306",
+      appId: "1:668415450306:web:cd38724bea22b6e555af5b"
+    };
+
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Cargar notas al iniciar
+    let notas = [];
+    db.collection("notas").orderBy("orden", "asc").onSnapshot((snapshot) => {
+      notas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mostrarNotas();
+    });
 
     function agregarNota() {
       const texto = document.getElementById("textoNota").value;
       const color = document.getElementById("colorNota").value;
+      const colorLetra = document.getElementById("colorLetra").value;
       const categoria = document.getElementById("categoriaNota").value;
       if (texto) {
-        const nota = { texto, color, categoria };
-        notas.push(nota);
-        localStorage.setItem("notas", JSON.stringify(notas));
-        mostrarNotas();
-        document.getElementById("textoNota").value = ""; // Limpiar input
+        // Añadir la nota con un valor de orden (máximo actual + 1)
+        const maxOrden = notas.length > 0 ? Math.max(...notas.map(nota => nota.orden || 0)) : 0;
+        db.collection("notas").add({
+          texto,
+          color,
+          colorLetra,
+          categoria,
+          orden: maxOrden + 1
+        })
+          .then(() => {
+            document.getElementById("textoNota").value = "";
+          })
+          .catch((error) => {
+            console.error("Error al agregar nota:", error);
+          });
       }
+    }
+
+    function editarNota(id, texto, color, colorLetra, categoria) {
+      const nuevoTexto = prompt("Editar texto:", texto);
+      const nuevoColor = prompt("Editar color del fondo (hex):", color);
+      const nuevoColorLetra = prompt("Editar color de la letra (hex):", colorLetra);
+      const nuevaCategoria = prompt("Editar categoría:", categoria);
+      if (nuevoTexto) {
+        db.collection("notas").doc(id).update({
+          texto: nuevoTexto || texto,
+          color: nuevoColor || color,
+          colorLetra: nuevoColorLetra || colorLetra,
+          categoria: nuevaCategoria || categoria
+        }).catch((error) => {
+          console.error("Error al editar nota:", error);
+        });
+      }
+    }
+
+    function borrarNota(id) {
+      db.collection("notas").doc(id).delete()
+        .catch((error) => {
+          console.error("Error al borrar nota:", error);
+        });
     }
 
     function mostrarNotas() {
@@ -43,9 +166,49 @@
       notas.forEach(nota => {
         const div = document.createElement("div");
         div.className = "nota";
+        div.draggable = true;
+        div.setAttribute("data-id", nota.id);
         div.style.backgroundColor = nota.color;
-        div.innerHTML = `<strong>${nota.categoria || "Sin categoría"}</strong>: ${nota.texto}`;
+        div.innerHTML = `
+          <div class="nota-content" style="color: ${nota.colorLetra}">
+            <strong>${nota.categoria || "Sin categoría"}</strong><br>${nota.texto}
+          </div>
+          <button onclick="editarNota('${nota.id}', '${nota.texto}', '${nota.color}', '${nota.colorLetra}', '${nota.categoria}')" class="editar">Editar</button>
+          <button onclick="borrarNota('${nota.id}')" class="borrar">Borrar</button>`;
         lista.appendChild(div);
+      });
+
+      // Añadir eventos de drag-and-drop
+      const notasElements = lista.getElementsByClassName("nota");
+      Array.from(notasElements).forEach(nota => {
+        nota.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", nota.getAttribute("data-id"));
+          nota.classList.add("dragging");
+        });
+        nota.addEventListener("dragend", () => {
+          nota.classList.remove("dragging");
+        });
+        nota.addEventListener("dragover", (e) => {
+          e.preventDefault();
+        });
+        nota.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const draggedId = e.dataTransfer.getData("text/plain");
+          const targetId = nota.getAttribute("data-id");
+          if (draggedId !== targetId) {
+            const draggedNota = notas.find(n => n.id === draggedId);
+            const targetNota = notas.find(n => n.id === targetId);
+            const draggedIndex = notas.findIndex(n => n.id === draggedId);
+            const targetIndex = notas.findIndex(n => n.id === targetId);
+            // Actualizar el orden en Firestore
+            const newNotas = [...notas];
+            newNotas.splice(draggedIndex, 1);
+            newNotas.splice(targetIndex, 0, draggedNota);
+            newNotas.forEach((nota, index) => {
+              db.collection("notas").doc(nota.id).update({ orden: index });
+            });
+          }
+        });
       });
     }
   </script>
