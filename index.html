@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mi Plataforma</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .nota { padding: 10px; margin: 5px; background-color: lightblue; border-radius: 5px; }
+    .nota input { margin: 5px; }
+    button { padding: 5px 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Mi Plataforma</h1>
+  <div>
+    <input type="text" id="textoNota" placeholder="Escribe una nota">
+    <input type="color" id="colorNota" value="#ADD8E6">
+    <input type="text" id="categoriaNota" placeholder="Categoría">
+    <button onclick="agregarNota()">Agregar Nota</button>
+  </div>
+  <div id="listaNotas"></div>
+
+  <script>
+    // Cargar notas guardadas al iniciar
+    let notas = JSON.parse(localStorage.getItem("notas")) || [];
+    mostrarNotas();
+
+    function agregarNota() {
+      const texto = document.getElementById("textoNota").value;
+      const color = document.getElementById("colorNota").value;
+      const categoria = document.getElementById("categoriaNota").value;
+      if (texto) {
+        const nota = { texto, color, categoria };
+        notas.push(nota);
+        localStorage.setItem("notas", JSON.stringify(notas));
+        mostrarNotas();
+        document.getElementById("textoNota").value = ""; // Limpiar input
+      }
+    }
+
+    function mostrarNotas() {
+      const lista = document.getElementById("listaNotas");
+      lista.innerHTML = "";
+      notas.forEach(nota => {
+        const div = document.createElement("div");
+        div.className = "nota";
+        div.style.backgroundColor = nota.color;
+        div.innerHTML = `<strong>${nota.categoria || "Sin categoría"}</strong>: ${nota.texto}`;
+        lista.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
